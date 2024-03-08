@@ -4,14 +4,14 @@
 #include "primitives.h"
 
 const int WIDTH = 1300, HEIGHT = 1000; // Screen parameters in pixels
-const int OFFSET = 12;               // Cell size in pixels
-const int DELAY = 20;   //Delay between cycles in ms
+const int OFFSET = 12;                 // Cell size in pixels
+const int DELAY = 0;                  // Delay between cycles in ms
 
 void initCells(int offset, std::vector<std::vector<std::unique_ptr<Rect>>> &cells) // creating Rects for all cells of grid
 {
-    for (int y = 0; y < HEIGHT; y += offset)
+    for (int y = 0; y < HEIGHT - offset; y += offset)
     {
-        for (int x = 0; x < WIDTH; x += offset)
+        for (int x = 0; x < WIDTH - offset; x += offset)
         {
             std::unique_ptr<Rect> r = std::make_unique<Rect>(Rect(x, y, x + offset, y + offset, false, 0, 0, 0, 255));
             cells[y / offset].push_back(std::move(r));
@@ -90,6 +90,22 @@ int main(int argc, char *argv[])
                 SDL_Quit();
                 return EXIT_SUCCESS;
             }
+            if (SDL_MOUSEMOTION == windowEvent.type)
+            {
+                int x, y;
+                if (SDL_BUTTON_LEFT == windowEvent.button.button)
+                {
+                    SDL_GetMouseState(&x, &y);
+                    if (!(x >= WIDTH / OFFSET * OFFSET || y >= HEIGHT / OFFSET * OFFSET || x <= 0 || y <= 0))
+                    {
+                        cells[y / OFFSET][x / OFFSET]->painted = true;
+                        cells[y / OFFSET][x / OFFSET]->Draw(renderer);
+                        SDL_RenderPresent(renderer);
+                    }
+                }
+
+                
+            }
             if (SDL_MOUSEBUTTONDOWN == windowEvent.type)
             {
                 int x, y;
@@ -98,9 +114,19 @@ int main(int argc, char *argv[])
                     SDL_GetMouseState(&x, &y);
                     if (!(x > WIDTH / OFFSET * OFFSET || y > HEIGHT / OFFSET * OFFSET))
                     {
+                        cells[y / OFFSET][x / OFFSET]->painted = true;
+                        cells[y / OFFSET][x / OFFSET]->Draw(renderer);
+                        SDL_RenderPresent(renderer);
+                    }
+                }
+                if (SDL_BUTTON_RIGHT == windowEvent.button.button)
+                {
+                    SDL_GetMouseState(&x, &y);
+                    if (!(x >= WIDTH / OFFSET * OFFSET || y >= HEIGHT / OFFSET * OFFSET || x <= 0 || y <= 0))
+                    {
                         cells[y / OFFSET][x / OFFSET]->ChangeColor(255, 255, 255);
                         cells[y / OFFSET][x / OFFSET]->Draw(renderer);
-                        cells[y / OFFSET][x / OFFSET]->painted = !cells[y / OFFSET][x / OFFSET]->painted;
+                        cells[y / OFFSET][x / OFFSET]->painted = false;
                         cells[y / OFFSET][x / OFFSET]->ChangeColor(0, 0, 0);
                         cells[y / OFFSET][x / OFFSET]->Draw(renderer);
                         SDL_RenderPresent(renderer);
@@ -116,6 +142,16 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    std::vector<std::vector<bool>> tmp(cells.size());
+    for (int i = 0; i < cells.size(); i++)
+    {
+        for (int j = 0; j < cells[i].size(); j++)
+        {
+            tmp[i].push_back(cells[i][j]->painted);
+        }
+    }
+
     while (true)
     {
         if (SDL_PollEvent(&windowEvent))
@@ -125,24 +161,23 @@ int main(int argc, char *argv[])
                 SDL_DestroyWindow(window);
                 SDL_Quit();
                 return EXIT_SUCCESS;
+                
             }
         }
 
-        std::vector<std::vector<bool>> tmp(cells.size());
         for (int i = 0; i < cells.size(); i++)
         {
             for (int j = 0; j < cells[i].size(); j++)
             {
-                tmp[i].push_back(cells[i][j]->painted);
+                tmp[i][j] = cells[i][j]->painted;
             }
         }
         for (int i = 0; i < cells.size(); i++)
         {
-            for (int j = 0; j < cells[i].size(); j++)
+            for (int j = 0; j < cells[0].size(); j++)
             {
                 std::vector<std::vector<int>> neighbours = findNeighbours(j, i, cells[0].size() - 1, cells.size() - 1);
                 int activeCount = 0;
-
                 for (int k = 0; k < neighbours.size(); k++)
                     if (tmp[neighbours[k][0]][neighbours[k][1]])
                         activeCount++;
